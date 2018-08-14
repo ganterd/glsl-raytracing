@@ -2,7 +2,7 @@
 	<entities>
 		<entity name="Sponza">
 			<model scale="1">
-				<path>resources/models/suzannes2.blend</path>
+				<path>resources/models/test_rt_sponza.blend</path>
 			</model>
 			<position>
 				<x>0</x>

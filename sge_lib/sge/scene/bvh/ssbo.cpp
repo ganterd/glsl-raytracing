@@ -27,6 +27,8 @@ void SGE::RT::BVHSSBO::toSSBO(BVH* bvh)
         {
             allocatedNodes[nodeIdx].leftIdx = n.mTris[0] == nullptr ? -1 : n.mTris[0]->mTriIndex;
             allocatedNodes[nodeIdx].rightIdx = n.mTris[1] == nullptr ? -1 : n.mTris[1]->mTriIndex;
+            allocatedNodes[nodeIdx].tri2 = n.mTris[2] == nullptr ? -1 : n.mTris[2]->mTriIndex;
+            allocatedNodes[nodeIdx].tri3 = n.mTris[3] == nullptr ? -1 : n.mTris[3]->mTriIndex;
         }
         else
         {

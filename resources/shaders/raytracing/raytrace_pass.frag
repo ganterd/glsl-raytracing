@@ -51,8 +51,11 @@ struct BVHNode {
     AABB aabb;
     int leftIdx;
     int rightIdx;
+    int tri2;
+    int tri3;
     int isLeaf;
     int parentIdx;
+    int pad0_, pad1_;
 };
 layout(std430, binding = 11) buffer BVHNodesBuffer{ BVHNode nodes[]; };
 
@@ -197,6 +200,12 @@ bool traverse(in const Ray ray, inout RayHit hit, in bool anyOcclusion)
                 if(hit.hits > 0 && anyOcclusion) return true;
 
                 testTri(nodes[nodeIdx].rightIdx, ray, hit);
+                if(hit.hits > 0 && anyOcclusion) return true;
+
+                testTri(nodes[nodeIdx].tri2, ray, hit);
+                if(hit.hits > 0 && anyOcclusion) return true;
+
+                testTri(nodes[nodeIdx].tri3, ray, hit);
                 if(hit.hits > 0 && anyOcclusion) return true;
                 nodeIdx = getNextSearchNode(nodeIdx);
             }

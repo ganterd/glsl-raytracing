@@ -151,7 +151,7 @@ SGE::RT::Node* SGE::RT::BVH::recursiveConstruct(
     if(level > deepestLevel)
         deepestLevel = level;
 
-    if(numTris <= 2)
+    if(numTris <= 4)
     {
         Node* n = &mAllocatedNodes[mCurrentlyAllocatedNodes];
         n->mIsLeaf = true;

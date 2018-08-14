@@ -17,12 +17,14 @@ namespace SGE
             int mNodeIndex;
 
             char mNumTris;
-            Tri* mTris[2];
+            Tri* mTris[4];
 
             Node()
             {
                 mTris[0] = nullptr;
                 mTris[1] = nullptr;
+                mTris[2] = nullptr;
+                mTris[3] = nullptr;
             }
 
             void AssignLeft(struct Node* n)

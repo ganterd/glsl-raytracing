@@ -22,8 +22,11 @@ namespace SGE
                 glm::vec4 aabbMax;
                 int leftIdx;
                 int rightIdx;
+                int tri2;
+                int tri3;
                 int isLeaf;
                 int parentIdx;
+                int pad0_, pad1_;
             };
 
             GLuint attachedBVHNodesSSBO;
