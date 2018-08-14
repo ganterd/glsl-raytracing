@@ -1,2 +1,3 @@
-# Voxel Cone Tracing
-Personal implementation of Crassin et al. [2001] - Interactive Indirect Illumination Using Voxel Cone Tracing.
+# GLSL Ray-Tracing
+
+Fork of my own repository to experiment using GLSL for ray-tracing. Lots of hacking stuff together was involved.
