@@ -43,8 +43,6 @@ namespace SGE
 		void enable();
 		void disable();
 
-		void setMVP(glm::mat4 mvpMat);
-
 		virtual void setVariable(std::string name, bool value);
 		virtual void setVariable(std::string name, int value);
 		virtual void setVariable(std::string name, float value);

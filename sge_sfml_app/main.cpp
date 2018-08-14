@@ -47,9 +47,6 @@ void init()
 	/* Instantiate the scene object */
 	SceneImporter sceneImporter;
 	scene = sceneImporter.importSceneFromFile("resources/scenes/test_rt_scene.xml");
-
-	ShaderManager::loadShader("normals");
-	ShaderManager::loadShader("depth");
 }
 
 void exit()

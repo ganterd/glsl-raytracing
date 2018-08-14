@@ -6,5 +6,5 @@
 		<fullscreen>false</fullscreen>
 	</window>
 	<renderer>GL</renderer>
-	<msaasamples>1</msaasamples>
+	<msaasamples>2</msaasamples>
 </display>

@@ -59,62 +59,30 @@ struct BVHNode {
 };
 layout(std430, binding = 11) buffer BVHNodesBuffer{ BVHNode nodes[]; };
 
-float random(vec2 co)
+float random(float co)
 {
-   return fract(sin(dot(co.xy,vec2(12.9898,78.233))) * 43758.5453);
+   return fract(sin(co * fragPosition.x * fragPosition.y * 12.9898) * 43758.5453);
 }
 
 bool testAABB(const Ray ray, const AABB aabb)
 {
-    float tmin = (aabb.min.x - ray.origin.x) / ray.direction.x;
-    float tmax = (aabb.max.x - ray.origin.x) / ray.direction.x;
+    float tmin, tmax;
+    vec3 t0, t1;
+    vec3 invDir = 1.0f / ray.direction;
+    t0 = (vec3(aabb.min) - ray.origin) * invDir;
+    t1 = (vec3(aabb.max) - ray.origin) * invDir;
 
-    if (tmin > tmax)
-    {
-        float t = tmin;
-        tmin = tmax;
-        tmax = t;
-    }
 
-    float tymin = (aabb.min.y - ray.origin.y) / ray.direction.y;
-    float tymax = (aabb.max.y - ray.origin.y) / ray.direction.y;
+    tmin = min(t0.x, t1.x);
+    tmax = max(t0.x, t1.x);
 
-    if (tymin > tymax)
-    {
-        float t = tymin;
-        tymin = tymax;
-        tymax = t;
-    }
+    tmin = max(tmin, min(t0.y, t1.y));
+    tmax = min(tmax, max(t0.y, t1.y));
 
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
+    tmin = max(tmin, min(t0.z, t1.z));
+    tmax = min(tmax, max(t0.z, t1.z));
 
-    if (tymin > tmin)
-        tmin = tymin;
-
-    if (tymax < tmax)
-        tmax = tymax;
-
-    float tzmin = (aabb.min.z - ray.origin.z) / ray.direction.z;
-    float tzmax = (aabb.max.z - ray.origin.z) / ray.direction.z;
-
-    if (tzmin > tzmax)
-    {
-        float t = tzmin;
-        tzmin = tzmax;
-        tzmax = t;
-    }
-
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-
-    if (tzmin > tmin)
-        tmin = tzmin;
-
-    if (tzmax < tmax)
-        tmax = tzmax;
-
-    return true;
+    return tmax >= tmin;
 }
 
 bool testTri(in int triIdx, in const Ray ray, inout RayHit hit)
@@ -163,6 +131,15 @@ bool testTri(in int triIdx, in const Ray ray, inout RayHit hit)
 	return true;
 }
 
+/**
+ * Function that traverses back up the BVH stack to find the next branch
+ * to traverse down. Can be determined by which side of the branch we're
+ * coming up from. If we're coming up from the left branch, take the right
+ * branch as the next search node. Otherwise, if we're coming up from the
+ * right branch, go and repeat this process for the next parent up. Do this
+ * until we hit a valid search node, or we hit the root node. In which case
+ * the BVH was exhausted.
+ */
 int getNextSearchNode(int currentNode)
 {
     while(true)
@@ -197,17 +174,17 @@ bool traverse(in const Ray ray, inout RayHit hit, in bool anyOcclusion)
             if(nodes[nodeIdx].isLeaf != 0)
             {
                 testTri(nodes[nodeIdx].leftIdx, ray, hit);
-                if(hit.hits > 0 && anyOcclusion) return true;
-
                 testTri(nodes[nodeIdx].rightIdx, ray, hit);
-                if(hit.hits > 0 && anyOcclusion) return true;
-
                 testTri(nodes[nodeIdx].tri2, ray, hit);
-                if(hit.hits > 0 && anyOcclusion) return true;
-
                 testTri(nodes[nodeIdx].tri3, ray, hit);
-                if(hit.hits > 0 && anyOcclusion) return true;
-                nodeIdx = getNextSearchNode(nodeIdx);
+
+                if(hit.hits > 0 && anyOcclusion)
+                    // You might think that returning eary would optimise this
+                    // function, but don't forget that the GPU shader groups
+                    // operate in lockstep, so divergence is bad.
+                    return true;
+                else
+                    nodeIdx = getNextSearchNode(nodeIdx);
             }
             else
             {
@@ -236,7 +213,7 @@ bool occluded(in vec3 a, in vec3 b)
     return traverse(ray, hit, true);
 }
 
-vec3 lightHit(in const RayHit hit)
+vec3 lightAccumulation(in const RayHit hit)
 {
     vec3 colour = vec3(0.0f);
 
@@ -248,9 +225,9 @@ vec3 lightHit(in const RayHit hit)
         PointLight light = pointLights[l];
         for(int i = 0; i < lightSamples; ++i)
         {
-            float rx = random(vec2(float(i) * fragPosition.xy * gameTime));
-            float ry = random(vec2(float(i) * fragPosition.xy * gameTime + 0.1f));
-            float rz = random(vec2(float(i) * fragPosition.xy * gameTime + 0.2f));
+            float rx = random(float(l) + float(i) * gameTime);
+            float ry = random(float(l) + float(i) * gameTime + 0.1f);
+            float rz = random(float(l) + float(i) * gameTime + 0.2f);
             vec3 randomOffset = vec3(rx, ry, rz);
             randomOffset *= 2.0f;
             randomOffset -= vec3(1.0f);
@@ -260,7 +237,6 @@ vec3 lightHit(in const RayHit hit)
             vec3 lightDirection = lightPosition - hit.position;
             float lightDistanceRcp = 1.0f / length(lightPosition - hit.position);
             lightDirection = lightDirection * lightDistanceRcp;
-
 
             if(!occluded(hit.position + lightDirection * 0.0001f, lightPosition))
             {
@@ -319,10 +295,10 @@ void main()
         {
             hit.position = ray.direction * hit.distance + ray.origin - ray.direction * 0.01f;
 
-            finalColour += lightHit(hit) * currentBounceWeight;
+            finalColour += lightAccumulation(hit) * currentBounceWeight;
 
-            float rx = random(vec2(fragPosition.xy * gameTime));
-            float ry = random(vec2(fragPosition.xy * gameTime + 0.1f));
+            float rx = random(gameTime);
+            float ry = random(gameTime + 0.01f);
             vec3 randomHemisphereVector = CosineSampleHemisphere(rx, ry);
 
             ray.origin = hit.position;
@@ -337,10 +313,8 @@ void main()
             break;
         }
     }
-    if(frames > 0)
-    {
-        finalColour += vec3(texture(previousCast, p)) * float(frames - 1);
-        finalColour /= float(frames);
-    }
+
+    finalColour += vec3(texture(previousCast, p)) * float(frames);
+    finalColour /= float(frames + 1);
     outColour = vec4(finalColour, 1.0f);
 }

@@ -20,36 +20,30 @@ namespace SGE
 
 	bool GLSLShader::loadFromFiles(std::string vFile, std::string gFile, std::string fFile)
 	{
+
+		const char* vShaderCode = readShaderCode(vFile);
+		const char* gShaderCode = readShaderCode(gFile);
+		const char* fShaderCode = readShaderCode(fFile);
+
 		LOG(INFO) << "Loading shaders";
-		LOG(INFO) << " |- Vert: " << vFile;
-		LOG(INFO) << " |- Geom: " << gFile;
-		LOG(INFO) << " |- Frag: " << fFile;
-
 		this->shaderID = glCreateProgram();
-		loadShader(readShaderCode(vFile), GL_VERTEX_SHADER, this->shaderID);
-		loadShader(readShaderCode(gFile), GL_GEOMETRY_SHADER, this->shaderID);
-		loadShader(readShaderCode(fFile), GL_FRAGMENT_SHADER, this->shaderID);
+		if(vShaderCode)
+		{
+			LOG(INFO) << " |- Vert: " << vFile;
+			loadShader(vShaderCode, GL_VERTEX_SHADER, shaderID);
+		}
+		if(gShaderCode)
+		{
+			LOG(INFO) << " |- Geom: " << gFile;
+			loadShader(gShaderCode, GL_GEOMETRY_SHADER, shaderID);
+		}
+		if(fShaderCode)
+		{
+			LOG(INFO) << " |- Frag: " << fFile;
+			loadShader(fShaderCode, GL_FRAGMENT_SHADER, this->shaderID);
+		}
+
 		glLinkProgram(this->shaderID);
-
-
-		// TODO: Re-do the whole shader variables thing. Gets a bit messy
-		this->locMVP = glGetUniformLocation(this->shaderID, SGE_MVP_SHADER_MAT);
-		if(this->locMVP == -1)
-		{
-			LOG(WARNING) << "Couldn't find shader variable '" << SGE_MVP_SHADER_MAT << "'";
-		}
-
-		this->locBufferWidth = glGetUniformLocation(this->shaderID, SGE_SHADER_BUFFER_WIDTH);
-		if(this->locBufferWidth == -1)
-		{
-			LOG(WARNING) << "Couldn't find shader variable '" << SGE_SHADER_BUFFER_WIDTH << "'";
-		}
-
-		this->locBufferHeight = glGetUniformLocation(this->shaderID, SGE_SHADER_BUFFER_HEIGHT);
-		if(this->locBufferHeight == -1)
-		{
-			LOG(WARNING) << "Couldn't find shader variable '" << SGE_SHADER_BUFFER_HEIGHT << "'";
-		}
 
 		return true;
 	}
@@ -127,7 +121,6 @@ namespace SGE
 		if(shaderCode == NULL)
 			return 0;
 
-		// TODO: Add some error sutff in here
 		GLuint shaderID = glCreateShader(shaderType);
 
 		glShaderSource(shaderID, 1, &shaderCode, 0);
@@ -159,21 +152,11 @@ namespace SGE
 		glUseProgram(this->shaderID);
 		glUniform1f(this->locBufferWidth, (float)targetBufferWidth);
 		glUniform1f(this->locBufferHeight, (float)targetBufferHeight);
-
-		//if(this->renderTarget == NULL)
-		//	LOG(ERROR) << "Shader has no render target!";
-		//this->renderTarget->bind();
 	}
 
 	void GLSLShader::disable()
 	{
-		//this->renderTarget->unbind();
 		glUseProgram(0);
-	}
-
-	void GLSLShader::setMVP(glm::mat4 mvpMat)
-	{
-		glUniformMatrix4fv(this->locMVP, 1, GL_FALSE, &mvpMat[0][0]);
 	}
 
 	void GLSLShader::updateTargetBufferDimensions()

@@ -81,7 +81,6 @@ namespace SGE
 
 		if(bufferType != IRenderBuffer::BufferType::Depth)
 		{
-			LOG(DEBUG) << "New colour attachment [" << attachment << "]";
 			mColourAttachments.push_back(buffer);
 			unsigned int* attachments = new unsigned int[mColourAttachments.size()];
 			for(int i = 0; i < mColourAttachments.size(); ++i)

@@ -154,7 +154,6 @@ namespace SGE
 		switch(status)
 		{
 		case GL_FRAMEBUFFER_COMPLETE:
-			LOG(DEBUG) << "FBO is aaallll good!";
 			return true;
 		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			LOG(ERROR) << "FBO Error: Incomplete Attachment (GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT)";

@@ -38,8 +38,6 @@ namespace SGE
 		virtual void enable() = 0;
 		virtual void disable() = 0;
 
-		virtual void setMVP(glm::mat4 mvpMat) = 0;
-
 		void setTargetBufferDimensions(int w, int h);
 		const char* readFile(const char* filePath);
 

@@ -26,7 +26,7 @@ namespace SGE
 		currentIteration = 0;
 		iterationsPerPatch = 1000;
 		patchSizeX = 1.0f;
-		patchSizeY = 1.0f / (float)(bufferHeight / 8);
+		patchSizeY = 1.0f / (float)(bufferHeight / 16);
 		patchX = 0.0f;
 		patchY = 0.0f;
 
@@ -90,9 +90,6 @@ namespace SGE
 			shader->setVariable("viewProjectionMatrix", mCamera->getVPMat());
 			mRootEntity->draw(shader);
 
-			lastUpdateTime = Time::gameTime();
-			lastIterationTime = Time::gameTime();
-
 			GLuint sceneLightsSSBO;
 			glGenBuffers(1, &sceneLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, sceneLightsSSBO);
@@ -104,6 +101,10 @@ namespace SGE
 			);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, sceneLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+			glFinish();
+
+			lastUpdateTime = Time::gameTime();
+			lastIterationTime = Time::gameTime();
 		}
 
 		glDisable(GL_CULL_FACE);
