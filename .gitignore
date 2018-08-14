@@ -18,3 +18,5 @@ external/
 
 # Gedit's temp file
 *.*~
+
+*.blend1
