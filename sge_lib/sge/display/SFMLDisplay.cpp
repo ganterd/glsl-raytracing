@@ -16,8 +16,8 @@ namespace SGE
 		if( window == NULL )
 			LOG(FATAL) << "Window could not be created";
 
-		window->setMouseCursorVisible(false);
-		window->setMouseCursorGrabbed(true);
+		//window->setMouseCursorVisible(false);
+		//window->setMouseCursorGrabbed(true);
 		hasCursor = true;
 
 		mWindowSize.width = w;
@@ -28,8 +28,8 @@ namespace SGE
 	void SFMLDisplay::toggleGrabCursor()
 	{
 		hasCursor = !hasCursor;
-		window->setMouseCursorVisible(!hasCursor);
-		window->setMouseCursorGrabbed(hasCursor);
+		//window->setMouseCursorVisible(!hasCursor);
+		//window->setMouseCursorGrabbed(hasCursor);
 	}
 
 	void SFMLDisplay::setAsTarget()

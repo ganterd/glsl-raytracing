@@ -51,6 +51,7 @@ namespace SGE
 		virtual void setVariable(std::string name, float value) = 0;
 		virtual void setVariable(std::string name, glm::vec2 value) = 0;
 		virtual void setVariable(std::string name, glm::vec3 value) = 0;
+		virtual void setVariable(std::string name, glm::vec4 value) = 0;
 		virtual void setVariable(std::string name, glm::mat4 value) = 0;
 	};
 }

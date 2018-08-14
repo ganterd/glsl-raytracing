@@ -28,14 +28,22 @@ namespace SGE
 		};
 
 	public:
-		Camera* camera;
+		Camera* mCamera;
 		OverlayQuad* overlayQuad;
 		GLSLRenderTarget* renderTarget;
-		GLSLRenderTarget* cachedFrames[2];
-		int currentFrame;
+		GLSLRenderTarget* cachedFrame;
+		int currentIteration;
+		float lastUpdateTime;
+		float lastIterationTime;
+		int iterationsPerPatch;
+		float patchSizeX;
+		float patchSizeY;
+		float patchX;
+		float patchY;
 		Entity* lightDebugModel;
 		RT::BVH mBVH;
 		RT::BVHSSBO mBVHSSBO;
+		std::vector<SceneLight> mSceneLights;
 
 		Scene();
 

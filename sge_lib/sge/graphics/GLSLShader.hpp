@@ -50,6 +50,7 @@ namespace SGE
 		virtual void setVariable(std::string name, float value);
 		virtual void setVariable(std::string name, glm::vec2 value);
 		virtual void setVariable(std::string name, glm::vec3 value);
+		virtual void setVariable(std::string name, glm::vec4 value);
 		virtual void setVariable(std::string name, glm::mat4 value);
 	};
 }

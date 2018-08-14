@@ -30,8 +30,9 @@ namespace SGE
 	public:
 		Export Camera();
 
-		Export void lookAt(const glm::vec3& p);
+		Export void setLookAt(const glm::vec3& p);
 		Export void setLookVector(const glm::vec3& l);
+		Export void setUpVector(const glm::vec3& u);
 		Export void setPosition(const glm::vec3& p);
 		Export void setFoV(float fov);
 		Export void setAspectRatio(float r);

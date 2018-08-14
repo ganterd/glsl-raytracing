@@ -9,17 +9,11 @@
 void SGE::Material::addTexture(ITexture* t)
 {
     mTextures.push_back(t);
-    if(t->type() == ITexture::Type::Normals)
-        hasNormalMap = true;
-    if(t->type() == ITexture::Type::Opacity)
-        hasOpacityMap = true;
 };
 
 void SGE::Material::bindAllTextures()
 {
     IShader* shader = ShaderManager::getCurrentShader();
-    shader->setVariable("hasNormalMap", hasNormalMap);
-    shader->setVariable("hasOpacityMap", hasOpacityMap);
     for(int i = 0; i < mTextures.size(); ++i)
     {
         switch(mTextures[i]->type())

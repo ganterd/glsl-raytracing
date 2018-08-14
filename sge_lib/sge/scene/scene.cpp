@@ -4,12 +4,11 @@ namespace SGE
 {
 	Scene::Scene()
 	{
-		camera = new Camera();
+		mCamera = new Camera();
 		ShaderManager::init();
-		ShaderManager::loadShader("deferred_shading/geometry_pass");
-		ShaderManager::loadShader("deferred_shading/lighting_pass");
-		ShaderManager::loadShader("deferred_shading/debug_light");
-		ShaderManager::loadShader("deferred_shading/blit");
+		ShaderManager::loadShader("raytracing/geometry_pass");
+		ShaderManager::loadShader("raytracing/raytrace_pass");
+		ShaderManager::loadShader("raytracing/blit");
 		Time::init();
 		overlayQuad = new OverlayQuad();
 
@@ -19,39 +18,45 @@ namespace SGE
 		renderTarget->addRenderBuffer(IRenderBuffer::BufferType::Position, ITexture::DataType::Float); // Position g-buffer
 		renderTarget->addRenderBuffer(IRenderBuffer::BufferType::Depth, ITexture::DataType::Float);
 
-		cachedFrames[0] = new GLSLRenderTarget(bufferWidth, bufferHeight);
-		cachedFrames[0]->addRenderBuffer(IRenderBuffer::BufferType::Color, ITexture::DataType::Float);
-		cachedFrames[0]->addRenderBuffer(IRenderBuffer::BufferType::Depth, ITexture::DataType::Float);
-		cachedFrames[0]->clear();
+		cachedFrame = new GLSLRenderTarget(bufferWidth, bufferHeight);
+		cachedFrame->addRenderBuffer(IRenderBuffer::BufferType::Color, ITexture::DataType::Float);
+		cachedFrame->addRenderBuffer(IRenderBuffer::BufferType::Depth, ITexture::DataType::Float);
+		cachedFrame->clear();
 
-		cachedFrames[1] = new GLSLRenderTarget(bufferWidth, bufferHeight);
-		cachedFrames[1]->addRenderBuffer(IRenderBuffer::BufferType::Color, ITexture::DataType::Float);
-		cachedFrames[1]->addRenderBuffer(IRenderBuffer::BufferType::Depth, ITexture::DataType::Float);
-		cachedFrames[1]->clear();
-		currentFrame = 0;
-
-		lightDebugModel = new Entity();
-		lightDebugModel->loadFromFile("resources/models/cube/cube.obj");
+		currentIteration = 0;
+		iterationsPerPatch = 1000;
+		patchSizeX = 1.0f;
+		patchSizeY = 1.0f / (float)(bufferHeight / 8);
+		patchX = 0.0f;
+		patchY = 0.0f;
 
 		mRootEntity = new Entity();
+
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
 	void Scene::addEntity(Entity* entity)
 	{
 		mRootEntity->addChild(entity);
+		if(entity->mCamera)
+			mCamera = entity->mCamera;
 	}
 
 	void Scene::update()
 	{
 		Time::tick();
-		Input::update();
-		camera->update();
+		//Input::update();
+		mCamera->update();
 
 		mRootEntity->update();
 		if(mBVH.mTargetSceneRoot != mRootEntity)
 		{
 			mBVH.construct(mRootEntity);
 			mBVHSSBO.toSSBO(&mBVH);
+			mBVHSSBO.bind(11, 10);
+
+			mSceneLights = extractLights();
 		}
 	}
 
@@ -67,79 +72,105 @@ namespace SGE
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		IShader* shader;
 
-		ShaderManager::useShader("deferred_shading/geometry_pass");
-		IShader* shader = ShaderManager::getCurrentShader();
+		if(currentIteration == 0 && patchX == 0.0f && patchY == 0.0f)
+		{
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		/* Draw the meshes */
-		// TODO: Use acceleration structure
-		int entities_count = (int)entities.size();
-		renderTarget->bind();
-		renderTarget->clear();
+			ShaderManager::useShader("raytracing/geometry_pass");
+			shader = ShaderManager::getCurrentShader();
 
-		shader->setVariable("viewProjectionMatrix", camera->getVPMat());
-		mRootEntity->draw(shader);
+			/* Draw the meshes */
+			int entities_count = (int)entities.size();
+			renderTarget->bind();
+			renderTarget->clear();
 
+			shader->setVariable("viewProjectionMatrix", mCamera->getVPMat());
+			mRootEntity->draw(shader);
 
-		/* Gather lights. Don't use acceleration structure in case */
-		/* lights are accidentally culled */
-		ShaderManager::useShader("deferred_shading/debug_light");
-		shader = ShaderManager::getCurrentShader();
-		renderTarget->bind();
-		shader->setVariable("viewProjectionMatrix", camera->getVPMat());
+			lastUpdateTime = Time::gameTime();
+			lastIterationTime = Time::gameTime();
 
-		std::vector<SceneLight> sceneLights = extractLights();
-		renderTarget->unbind();
+			GLuint sceneLightsSSBO;
+			glGenBuffers(1, &sceneLightsSSBO);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, sceneLightsSSBO);
+			glBufferData(
+				GL_SHADER_STORAGE_BUFFER,
+				sizeof(SceneLight) * mSceneLights.size(),
+				&mSceneLights[0],
+				GL_DYNAMIC_COPY
+			);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, sceneLightsSSBO);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		}
 
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 
-		ShaderManager::useShader("deferred_shading/lighting_pass");
+		ShaderManager::useShader("raytracing/raytrace_pass");
 		shader = ShaderManager::getCurrentShader();
 
-		int numLights = sceneLights.size();
-		shader->setVariable("numLights", numLights);
 
-		GLuint sceneLightsSSBO;
-		glGenBuffers(1, &sceneLightsSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, sceneLightsSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(SceneLight) * numLights, &sceneLights[0], GL_DYNAMIC_COPY);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, sceneLightsSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		shader->setVariable("numLights", (int)mSceneLights.size());
 
-		mBVHSSBO.bind(11, 10);
 
-		int fromBuffer = currentFrame % 2;
-		int toBuffer = (currentFrame + 1) % 2;
+		int fromBuffer = currentIteration % 2;
+		int toBuffer = (currentIteration + 1) % 2;
+
+		glm::vec4 currentPatch(patchX, patchY, patchX + patchSizeX, patchY + patchSizeY);
+
+		ShaderManager::useShader("raytracing/raytrace_pass");
+		shader = ShaderManager::getCurrentShader();
+		shader->setVariable("screenPatch", currentPatch);
 		shader->setVariable("positionsTexture", 0);
-		shader->setVariable("cachedFrame", 1);
-		shader->setVariable("cameraPosition", camera->getPosition());
+		shader->setVariable("previousCast", 1);
+		shader->setVariable("cameraPosition", mCamera->getPosition());
 		shader->setVariable("gameTime", (float)Time::gameTime());
-		shader->setVariable("frames", currentFrame);
+		shader->setVariable("frames", currentIteration);
 
-		renderTarget->getRenderBuffer(0)->bindTexture(0); // Position g-buffer
-		cachedFrames[toBuffer]->bind();
-		cachedFrames[fromBuffer]->getRenderBuffer(0)->bindTexture(1); // Position g-buffer
+		renderTarget->getRenderBuffer(0)->bindTexture(0);
+		cachedFrame->bind();
+		cachedFrame->getRenderBuffer(0)->bindTexture(1);
 		overlayQuad->draw();
 		renderTarget->getRenderBuffer(0)->unbindTexture();
-		cachedFrames[fromBuffer]->getRenderBuffer(0)->unbindTexture(); // Position g-buffer
-		cachedFrames[toBuffer]->unbind();
-		//pingPongFrame++;
-
-		glDeleteBuffers(1, &sceneLightsSSBO);
-
+		cachedFrame->getRenderBuffer(0)->unbindTexture();
+		cachedFrame->unbind();
+		glFinish();
 
 		/* Blit rendertarget to framebuffer */
-		ShaderManager::useShader("deferred_shading/blit");
-		shader = ShaderManager::getCurrentShader();
-		shader->setVariable("colourFrame", 0);
-		cachedFrames[toBuffer]->getRenderBuffer(0)->bindTexture(0);
-		overlayQuad->draw();
-		cachedFrames[toBuffer]->getRenderBuffer(0)->unbindTexture();
+		if(Time::gameTime() - lastUpdateTime > 0.2f)
+		{
+			ShaderManager::useShader("raytracing/blit");
+			shader = ShaderManager::getCurrentShader();
+			shader->setVariable("newFrame", 0);
+			shader->setVariable("screenPatch", currentPatch);
+			cachedFrame->getRenderBuffer(0)->bindTexture(0);
+			overlayQuad->draw();
+			cachedFrame->getRenderBuffer(0)->unbindTexture();
+			glFinish();
+			SGE::DisplayManager::getDisplayInstance()->swapBuffers();
+			lastUpdateTime = Time::gameTime();
+		}
 
-		currentFrame++;
+
+		patchX += patchSizeX;
+		if(patchX >= 1.0f)
+		{
+			patchX = 0.0f;
+			patchY += patchSizeY;
+			if(patchY >= 1.0f)
+			{
+				patchY = 0.0f;
+
+
+				float iterationTime = Time::gameTime() - lastIterationTime;
+				lastIterationTime = Time::gameTime();
+				LOG(DEBUG) << "Draw time (" << iterationTime << "s)";
+				currentIteration++;
+			}
+		}
 	}
 
 	std::vector<Scene::SceneLight> Scene::extractLights()
@@ -161,7 +192,6 @@ namespace SGE
 			p = mat * p;
 
 			glm::vec3 c = l->getColor();
-
 
 			SceneLight sceneLight;
 			sceneLight.position = p;

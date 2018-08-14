@@ -17,9 +17,10 @@ namespace SGE
 	public:
 		std::vector<Mesh*> meshes;
 		std::vector<Entity*> mChildren;
-		std::vector<ILight*> lights;
+		std::vector<ILight*> mLights;
 		std::vector<Material*> mMaterials;
 		std::vector<ObjectScript*> mAttachedScripts;
+		Camera* mCamera = nullptr;
 		glm::mat4 modelMat;
 		glm::vec3 position;
 

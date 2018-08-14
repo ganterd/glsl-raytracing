@@ -45,7 +45,48 @@ namespace SGE
 		/* Create light sources for the model */
 		this->extractLights();
 
+		this->extractCameras();
+
 		return true;
+	}
+
+	void ModelImporter::extractCameras()
+	{
+		if(model->mNumCameras)
+			extractCamera(model->mCameras[0]);
+	}
+
+	void ModelImporter::extractCamera(aiCamera* c)
+	{
+
+		aiVector3D cp = c->mPosition;
+		aiVector3D cl = c->mLookAt;
+		aiVector3D cu = c->mUp;
+
+		aiNode* cn = model->mRootNode->FindNode(c->mName);
+
+		aiMatrix4x4 ct = cn->mTransformation;
+
+		cn = cn->mParent;
+		while(cn->mParent)
+		{
+			ct = cn->mTransformation * ct;
+			cn = cn->mParent;
+		}
+
+		aiMatrix3x3 rotationMatrix(ct);
+
+		cp *= ct;
+		cl *= ct;
+		cu *= rotationMatrix;
+
+		mCamera = new Camera();
+		mCamera->setPosition(glm::vec3(cp.x, cp.y, cp.z));
+		mCamera->setLookAt(glm::vec3(cl.x, cl.y, cl.z));
+		mCamera->setUpVector(glm::vec3(cu.x, cu.y, cu.z));
+		mCamera->setFoV(c->mHorizontalFOV);
+
+
 	}
 
 	void ModelImporter::printModelInfo()
@@ -243,18 +284,61 @@ namespace SGE
 
 	void ModelImporter::extractLights()
 	{
-		LOG(INFO) << " |-Lights: " << model->mNumLights ;
+		LOG(INFO) << " |-Lights: " << model->mNumLights;
 		for(unsigned int i = 0; i < model->mNumLights; ++i)
 		{
 			LOG(DEBUG) << "   |-Light " << i ;
 			aiLight* light = model->mLights[i];
+			aiNode* node = model->mRootNode->FindNode(light->mName);
+			aiMatrix4x4 transform = node->mTransformation;
+			node = node->mParent;
+			while(node != model->mRootNode)
+			{
+				transform = node->mTransformation * transform;
+				node = node->mParent;
+			}
+			aiMatrix3x3 rotation(transform);
 
-			LOG(DEBUG) << "     |-Type: ";
-			ILight* l;
+			// Determine and transform positions and vectors
+			aiVector3D pos = transform * light->mPosition;
+			aiVector3D dir = transform * light->mDirection - pos;
+			aiVector3D up = transform * light->mUp - pos;
+			aiVector2D area = light->mSize;
+			aiColor3D diff = light->mColorDiffuse;
+			aiColor3D spec = light->mColorSpecular;
+			aiColor3D amb = light->mColorAmbient;
+
+			glm::vec3 colour = glm::vec3(diff.r, diff.g, diff.b);
+			float colourPower = std::max(std::max(colour.r, colour.g), colour.b);
+			colour /= colourPower;
+
+			ILight* l = new ILight();
+			l->setPosition(glm::vec3(pos.x, pos.y, pos.z));
+			l->setDirection(glm::vec3(dir.x, dir.y, dir.z));
+			l->setUpVector(glm::vec3(up.x, up.y, up.z));
+			l->setSize(glm::vec2(area.x, area.y));
+			l->setColor(colour);
+			l->setIntensity(colourPower);
+
+			float atten0 = light->mAttenuationConstant;
+			float atten1 = light->mAttenuationLinear;
+			float atten2 = light->mAttenuationQuadratic;
+			LOG(DEBUG) << "     |- Name: '" << light->mName.C_Str() << "'";
+			LOG(DEBUG) << "     |- Atten0: " << atten0;
+			LOG(DEBUG) << "     |- Atten1: " << atten1;
+			LOG(DEBUG) << "     |- Atten2: " << atten2;
+			LOG(DEBUG) << "     |- Diffuse: " << colour.r << ", " << colour.g << ", " << colour.b;
+			LOG(DEBUG) << "     |- Power: " << colourPower;
+
 			if(light->mType == aiLightSource_POINT)
 			{
-				LOG(DEBUG) << "Point" ;
-				l = new PointLight();
+				LOG(DEBUG) << "     |-Type: Point";
+				l->setType(ILight::Point);
+			}
+			else if(light->mType == aiLightSource_AREA)
+			{
+				LOG(DEBUG) << "     |-Type: Area";
+				l->setType(ILight::Area);
 			}
 
 			lights.push_back(l);

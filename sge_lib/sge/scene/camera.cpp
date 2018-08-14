@@ -14,7 +14,7 @@ namespace SGE
 		mUpVector = glm::vec3(0,1,0);
 	}
 
-	void Camera::lookAt(const glm::vec3& p)
+	void Camera::setLookAt(const glm::vec3& p)
 	{
 		mForwardVector = glm::normalize(p - mPosition);
 	}
@@ -33,6 +33,12 @@ namespace SGE
 	void Camera::setLookVector(const glm::vec3& l)
 	{
 		mForwardVector = glm::normalize(l);
+		update();
+	}
+
+	void Camera::setUpVector(const glm::vec3& u)
+	{
+		mUpVector = u;
 		update();
 	}
 

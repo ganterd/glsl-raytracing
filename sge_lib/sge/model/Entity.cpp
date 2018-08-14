@@ -17,8 +17,10 @@ namespace SGE
 		ModelImporter* importer = new ModelImporter();
 		importer->importModel(file, scale, makeLeftHanded);
 		this->meshes = importer->getMeshes();
-		this->lights = importer->getLights();
+		mLights = importer->getLights();
 		mMaterials = importer->getMaterials();
+		if(importer->hasCamera())
+			mCamera = importer->getCamera();
 
 		return true;
 	}
@@ -109,17 +111,17 @@ namespace SGE
 	void Entity::addLight(ILight* l)
 	{
 		l->mParent = this;
-		lights.push_back(l);
+		mLights.push_back(l);
 	}
 
 	std::vector<ILight*> Entity::getLights()
 	{
-		return this->lights;
+		return mLights;
 	}
 
 	ILight* Entity::getLight(int lightIndex)
 	{
 		// Not my fault if you index wrong...
-		return lights[lightIndex];
+		return mLights[lightIndex];
 	}
 }

@@ -96,6 +96,10 @@ namespace SGE
 		glUniform3f(getUniformLocation(name), value.x, value.y, value.z);
 	}
 
+	void GLSLShader::setVariable(std::string name, glm::vec4 value)
+	{
+		glUniform4f(getUniformLocation(name), value.x, value.y, value.z, value.w);
+	}
 
 	void GLSLShader::setVariable(std::string name, glm::mat4 value)
 	{
